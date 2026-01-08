@@ -3,12 +3,12 @@ class PointsManager {
         this.points = [];
     }
 
-    // Синхронизация данных с сервером (вызывается при init)
+    // Синхронизация данных с сервером
     sync(data) {
         this.points = data;
     }
 
-    // Обновление конкретной точки (вызывается при update)
+    // Обновление конкретной точки
     updatePoint(data) {
         const p = this.points.find(pt => pt.id === data.id);
         if (p) Object.assign(p, data);
@@ -16,7 +16,6 @@ class PointsManager {
 
     // Проверка попадания по точке (для кликов)
     checkHit(worldX, worldY) {
-        // Радиус 50 пикселей, чтобы было легче попасть пальцем
         return this.points.find(p => Math.hypot(p.x - worldX, p.y - worldY) < 50);
     }
 
@@ -28,19 +27,30 @@ class PointsManager {
             const isOwner = p.owner === myId;
             const isNeutral = p.owner === 'neutral';
             
-            // Определяем цветовую схему
+            // 1. Определение цветов
             let themeColor = isNeutral ? '#d4af37' : (isOwner ? '#4cd964' : '#ff3b30');
-            let ownerText = isNeutral ? "ГОСУДАРСТВО" : (isOwner ? "ВАШ КОНТРОЛЬ" : "ВРАЖЕСКАЯ ГРУППИРОВКА");
+            
+            // 2. Логика динамических имен (TG WebApp)
+            let ownerText = "";
+            if (p.isCapturing) {
+                // Если точку кто-то штурмует прямо сейчас
+                ownerText = `ШТУРМ: ${p.attackerName || "КТО-ТО"}`;
+            } else if (isNeutral) {
+                ownerText = "ГОСУДАРСТВО";
+            } else {
+                // Показываем ник владельца (свой или чужой)
+                ownerText = isOwner ? "ВАШ КОНТРОЛЬ" : `БАНДА: ${p.ownerName || "ВРАГИ"}`;
+            }
 
             ctx.save();
             
-            // 1. Анимация пульсации, если идет захват
+            // 3. Анимация пульсации при захвате
             let pulse = 0;
             if (p.isCapturing) {
                 pulse = Math.sin(now / 150) * 5;
             }
 
-            // 2. Рисуем "Ядро" точки
+            // 4. Рисуем ядро точки
             ctx.shadowBlur = 15 + pulse;
             ctx.shadowColor = themeColor;
             ctx.fillStyle = themeColor;
@@ -49,7 +59,7 @@ class PointsManager {
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            // 3. Параметры плашки UI
+            // 5. Параметры плашки UI
             const rectW = 190;
             const rectH = 60;
             const rectX = p.x - rectW / 2;
@@ -64,32 +74,32 @@ class PointsManager {
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // 4. Отрисовка плашки (Меню)
-            ctx.fillStyle = "rgba(10, 10, 10, 0.9)"; // Темный фон
+            // 6. Отрисовка плашки (Меню)
+            ctx.fillStyle = "rgba(10, 10, 10, 0.95)"; 
             ctx.strokeStyle = themeColor;
             ctx.lineWidth = 2;
             this.roundRect(ctx, rectX, rectY, rectW, rectH, 10, true, true);
 
-            // Текст: Название
+            // Текст: Название точки
             ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 16px sans-serif";
+            ctx.font = "bold 15px sans-serif";
             ctx.textAlign = "left";
             ctx.fillText(p.name.toUpperCase(), rectX + 15, rectY + 25);
 
-            // Текст: Владелец
+            // Текст: Статус владельца/штурма
             ctx.fillStyle = themeColor;
-            ctx.font = "10px monospace";
+            ctx.font = "bold 10px monospace";
             ctx.fillText(ownerText, rectX + 15, rectY + 45);
 
-            // Индикатор дохода
-            if (isOwner) {
+            // Текст: Доход (только если вы владелец и нет штурма)
+            if (isOwner && !p.isCapturing) {
                 ctx.fillStyle = "#4cd964";
                 ctx.textAlign = "right";
                 ctx.font = "bold 12px sans-serif";
                 ctx.fillText("+$10/S", rectX + rectW - 15, rectY + 45);
             }
 
-            // 5. Шкала прогресса захвата
+            // 7. Круговая шкала прогресса (под точкой)
             if (p.isCapturing && p.captureEnd > now) {
                 this.drawProgress(ctx, p, now);
             }
@@ -98,29 +108,27 @@ class PointsManager {
         });
     }
 
-    // Метод отрисовки кругового прогресса
     drawProgress(ctx, p, now) {
         const total = p.captureEnd - p.captureStart;
         const current = now - p.captureStart;
         const progress = Math.max(0, Math.min(current / total, 1));
 
-        // Фоновое кольцо (серое)
+        // Фон кольца
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 40, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.arc(p.x, p.y, 42, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
         ctx.lineWidth = 10;
         ctx.stroke();
 
-        // Активная полоса (белая)
+        // Полоса прогресса
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 40, -Math.PI / 2, (-Math.PI / 2) + (Math.PI * 2 * progress));
+        ctx.arc(p.x, p.y, 42, -Math.PI / 2, (-Math.PI / 2) + (Math.PI * 2 * progress));
         ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 7;
+        ctx.lineWidth = 6;
         ctx.lineCap = "round";
         ctx.stroke();
     }
 
-    // Вспомогательная функция для прямоугольников со скругленными углами
     roundRect(ctx, x, y, width, height, radius, fill, stroke) {
         ctx.beginPath();
         ctx.moveTo(x + radius, y);

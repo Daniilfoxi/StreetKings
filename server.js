@@ -5,23 +5,33 @@ const io = require('socket.io')(server);
 
 app.use(express.static('public'));
 
+// База данных точек
 let points = [
-    { id: 1, name: "PORT", x: 400, y: 500, owner: 'neutral', isCapturing: false },
-    { id: 2, name: "BANK", x: 1000, y: 300, owner: 'neutral', isCapturing: false },
-    { id: 3, name: "OFFICE", x: 800, y: 1200, owner: 'neutral', isCapturing: false }
+    { id: 1, name: "PORT", x: 400, y: 500, owner: 'neutral', ownerName: "ГОСУДАРСТВО", isCapturing: false },
+    { id: 2, name: "BANK", x: 1000, y: 300, owner: 'neutral', ownerName: "ГОСУДАРСТВО", isCapturing: false },
+    { id: 3, name: "OFFICE", x: 800, y: 1200, owner: 'neutral', ownerName: "ГОСУДАРСТВО", isCapturing: false }
 ];
 
 let playerBalances = {}; 
+let playerNames = {}; // Хранилище ников { socketId: "Nickname" }
 
 io.on('connection', (socket) => {
-    console.log(`Игрок подключен: ${socket.id}`);
+    console.log(`Connection: ${socket.id}`);
     
-    // Инициализация игрока
+    // 1. Инициализация игрока
     playerBalances[socket.id] = 1000;
+    playerNames[socket.id] = "Аноним"; // Временное имя
+    
     socket.emit('init', points);
     socket.emit('money_update', playerBalances[socket.id]);
 
-    // ЕДИНЫЙ таймер для начисления денег этому конкретному сокету
+    // 2. Получение реального имени из Telegram
+    socket.on('set_name', (name) => {
+        playerNames[socket.id] = name;
+        console.log(`Игрок ${socket.id} теперь известен как: ${name}`);
+    });
+
+    // 3. Таймер начисления денег (доход от захваченных точек)
     const moneyInterval = setInterval(() => {
         let income = 0;
         points.forEach(p => {
@@ -34,38 +44,45 @@ io.on('connection', (socket) => {
         }
     }, 1000);
 
-    // Логика захвата
+    // 4. Логика захвата
     socket.on('capture', (id) => {
         const p = points.find(pt => pt.id === id);
         
+        // Условие: точка существует, сейчас не захватывается и игрок не владелец
         if (p && !p.isCapturing && p.owner !== socket.id) {
             p.isCapturing = true;
             p.captureStart = Date.now();
-            p.captureEnd = Date.now() + 5000; 
+            p.captureEnd = Date.now() + 5000; // 5 секунд
             p.attacker = socket.id;
+            p.attackerName = playerNames[socket.id] || "Неизвестный";
 
-            io.emit('update', p); // Оповещаем всех о начале анимации
+            io.emit('update', p); // Оповещаем всех о начале захвата
 
             setTimeout(() => {
-                // Проверяем, что атакующий всё еще тот же (не перебит другим)
+                // Проверка: тот же ли игрок удерживает точку спустя время
                 if (p.attacker === socket.id) {
                     p.owner = socket.id;
+                    p.ownerName = playerNames[socket.id] || "Мафиози"; // Сохраняем ник владельца
                     p.isCapturing = false;
                     p.captureStart = null;
                     p.captureEnd = null;
                     p.attacker = null;
-                    io.emit('update', p); // Финал: меняем цвет у всех
+                    p.attackerName = null;
+                    
+                    io.emit('update', p); // Финал захвата
                 }
             }, 5000);
         }
     });
 
-    // Очистка при отключении
+    // 5. Очистка при отключении
     socket.on('disconnect', () => {
-        console.log(`Игрок отключился: ${socket.id}`);
-        clearInterval(moneyInterval); // Важно остановить таймер денег!
+        console.log(`Игрок отключился: ${playerNames[socket.id]}`);
+        clearInterval(moneyInterval);
         delete playerBalances[socket.id];
+        delete playerNames[socket.id];
     });
 });
 
-server.listen(3000, () => console.log("Server: http://localhost:3000"));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server started on port ${PORT}`));
