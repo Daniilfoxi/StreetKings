@@ -2,12 +2,15 @@ const canvas = document.getElementById('gameCanvas');
 const cam = new Camera(canvas, 1600, 1600); 
 const pointsMgr = new PointsManager();      
 const socket = io();
+window.socket = socket; 
+
 const mapImg = new Image();
 mapImg.src = 'maps.jpg';
 
 let dragDistance = 0;
 let playerCooldownEnd = 0; 
-let myPlayerName = ""; // Храним имя игрока для корректной отрисовки владельца
+let myPlayerKey = ""; 
+let selectedPointId = null; 
 
 mapImg.onload = () => {
     cam.updateMinZoom();
@@ -24,27 +27,39 @@ function resize() {
 window.onresize = resize;
 resize();
 
+// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+
+function isItMe(ownerKey) {
+    if (!ownerKey || !myPlayerKey) return false;
+    return ownerKey === myPlayerKey;
+}
+
 // --- СЕТЕВАЯ ЛОГИКА ---
 
-// 1. Новости города (Бегущая строка)
 socket.on('news_update', (text) => {
     const newsContent = document.getElementById('news-content');
     if (newsContent) {
-        // Сброс анимации для перезапуска (хак с reflow)
         newsContent.style.animation = 'none';
-        newsContent.offsetHeight; // триггер reflow
+        newsContent.offsetHeight; 
         newsContent.style.animation = 'ticker 25s linear infinite';
         newsContent.innerText = text;
     }
 });
 
-// Когда сервер подтверждает наше имя
-socket.on('set_name', (name) => {
-    myPlayerName = name;
+socket.on('set_name_confirmed', (key) => {
+    myPlayerKey = key;
+    console.log("CLIENT KEY CONFIRMED:", myPlayerKey);
 });
 
 socket.on('init', (data) => pointsMgr.sync(data));
-socket.on('update', (data) => pointsMgr.updatePoint(data));
+
+socket.on('update', (data) => {
+    pointsMgr.updatePoint(data);
+    // Обновляем UI меню в реальном времени, если оно открыто
+    if (selectedPointId === data.id) {
+        updateMenuUI(data);
+    }
+});
 
 socket.on('money_update', (balance) => {
     const moneyElem = document.getElementById('money-display');
@@ -56,72 +71,85 @@ socket.on('player_cooldown', (endTime) => {
 });
 
 socket.on('error_msg', (msg) => {
-    if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.showAlert(msg);
-    } else {
-        alert(msg);
-    }
+    window.Telegram?.WebApp ? window.Telegram.WebApp.showAlert(msg) : alert(msg);
 });
 
-// --- ЛОГИКА ВЗАИМОДЕЙСТВИЯ (КЛИКИ) ---
+// --- ЛОГИКА ИГРОВОГО МЕНЮ ---
+
+function updateMenuUI(point) {
+    const menu = document.getElementById('point-menu');
+    const title = document.getElementById('menu-title');
+    const info = document.getElementById('menu-info');
+    const upgradeBtn = document.getElementById('btn-upgrade');
+
+    if (!menu || !point) return;
+
+    title.innerText = point.name;
+    info.innerHTML = `
+        <div style="line-height: 1.6;">
+            УРОВЕНЬ: <span style="color: #fff; float: right;">${point.level}</span><br>
+            ДОХОД: <span style="color: #4cd964; float: right;">+$${point.income}/сек</span><br>
+            ВЛАДЕЕТ: <span style="color: #5ac8fa; float: right;">${point.ownerName}</span>
+        </div>
+    `;
+
+    if (isItMe(point.owner)) {
+        upgradeBtn.style.display = "block";
+        upgradeBtn.style.background = "#4cd964";
+        upgradeBtn.innerText = `УЛУЧШИТЬ ($5000)`;
+        upgradeBtn.onclick = () => socket.emit('upgrade_point', point.id);
+    } else {
+        upgradeBtn.style.display = "block";
+        upgradeBtn.style.background = "#ff3b30";
+        upgradeBtn.innerText = `ЗАХВАТИТЬ`;
+        upgradeBtn.onclick = () => {
+            socket.emit('capture', point.id);
+            menu.style.display = "none";
+        };
+    }
+}
+
 function handleInput(clientX, clientY) {
-    if (dragDistance > 10) return;
+    if (dragDistance > 15) return;
 
     const now = Date.now();
-    
-    // Проверка КД на клиенте
-    if (playerCooldownEnd > now) {
-        const remaining = Math.ceil((playerCooldownEnd - now) / 1000);
-        const msg = `Вы восстанавливаете силы. Ждите ${remaining} сек.`;
-        if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showAlert(msg);
-        } else {
-            alert(msg);
-        }
-        return;
-    }
-
+    const menu = document.getElementById('point-menu');
     const worldCoords = cam.screenToWorld(clientX, clientY);
     const clickedPoint = pointsMgr.checkHit(worldCoords.x, worldCoords.y);
 
     if (clickedPoint) {
-        if (clickedPoint.owner === myPlayerName) {
-            const upgradeCost = 5000;
-            const nextIncome = clickedPoint.income + 5;
-            
-            if (window.Telegram && window.Telegram.WebApp) {
-                window.Telegram.WebApp.showConfirm(
-                    `Улучшить ${clickedPoint.name} до LVL ${clickedPoint.level + 1} за $${upgradeCost}? Доход вырастет до $${nextIncome}/сек`,
-                    (confirmed) => {
-                        if (confirmed) socket.emit('upgrade_point', clickedPoint.id);
-                    }
-                );
-            } else {
-                if (confirm(`Улучшить здание за $5000?`)) {
-                    socket.emit('upgrade_point', clickedPoint.id);
-                }
-            }
-        } else {
-            socket.emit('capture', clickedPoint.id);
+        // Проверка кулдауна только для захвата
+        if (!isItMe(clickedPoint.owner) && playerCooldownEnd > now) {
+            const rem = Math.ceil((playerCooldownEnd - now) / 1000);
+            const msg = `Перезарядка: ${rem} сек.`;
+            window.Telegram?.WebApp ? window.Telegram.WebApp.showAlert(msg) : alert(msg);
+            return;
         }
-    }
-}
 
-function updateCooldownUI() {
-    const now = Date.now();
-    const cooldownElem = document.getElementById('cooldown-timer');
-    if (!cooldownElem) return;
-
-    if (playerCooldownEnd > now) {
-        const remaining = Math.ceil((playerCooldownEnd - now) / 1000);
-        cooldownElem.style.display = 'block';
-        cooldownElem.innerText = `ПЕРЕЗАРЯДКА: ${remaining}s`;
+        selectedPointId = clickedPoint.id;
+        updateMenuUI(clickedPoint);
+        menu.style.display = "block";
     } else {
-        cooldownElem.style.display = 'none';
+        menu.style.display = "none";
+        selectedPointId = null;
     }
 }
 
-// --- УПРАВЛЕНИЕ ---
+const closeBtn = document.getElementById('btn-close');
+if (closeBtn) closeBtn.onclick = () => {
+    document.getElementById('point-menu').style.display = "none";
+    selectedPointId = null;
+};
+
+// --- ПОЛНОЕ УПРАВЛЕНИЕ (МЫШЬ + ТАЧ + ЗУМ) ---
+
+const triggerCamMove = () => {
+    window.dispatchEvent(new CustomEvent('camera_move', { 
+        detail: { x: cam.x, y: cam.y, zoom: cam.zoom } 
+    }));
+};
+
+// Мышь
 canvas.addEventListener('mousedown', (e) => {
     cam.isDragging = true;
     dragDistance = 0;
@@ -135,33 +163,27 @@ window.addEventListener('mousemove', (e) => {
     cam.x += dx; cam.y += dy;
     dragDistance += Math.abs(dx) + Math.abs(dy);
     cam.lastMouse = { x: e.clientX, y: e.clientY };
-    
-    // Оповещаем UI о движении
-    window.dispatchEvent(new CustomEvent('camera_move', { 
-        detail: { x: cam.x, y: cam.y, zoom: cam.zoom } 
-    }));
+    if (dragDistance > 20) document.getElementById('point-menu').style.display = "none";
+    triggerCamMove();
 });
 
 window.addEventListener('mouseup', () => cam.isDragging = false);
 
+// Колесо (Зум)
 canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const worldPos = cam.screenToWorld(e.clientX, e.clientY);
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
     cam.zoom = Math.min(Math.max(cam.zoom * zoomFactor, cam.minZoom), cam.maxZoom);
-    
     cam.x = e.clientX - worldPos.x * cam.zoom;
     cam.y = e.clientY - worldPos.y * cam.zoom;
     cam.clamp();
-
-    window.dispatchEvent(new CustomEvent('camera_move', { 
-        detail: { x: cam.x, y: cam.y, zoom: cam.zoom } 
-    }));
+    triggerCamMove();
 }, { passive: false });
 
 canvas.addEventListener('click', (e) => handleInput(e.clientX, e.clientY));
 
-// --- УПРАВЛЕНИЕ (ТАЧ) ---
+// Тач-управление (Мобилки)
 canvas.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
         cam.isDragging = true;
@@ -190,39 +212,45 @@ canvas.addEventListener('touchmove', (e) => {
         const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
         const worldPos = cam.screenToWorld(centerX, centerY);
-
         const zoomScale = dist / cam.lastDist;
         cam.zoom = Math.min(Math.max(cam.zoom * zoomScale, cam.minZoom), cam.maxZoom);
-        
         cam.x = centerX - worldPos.x * cam.zoom;
         cam.y = centerY - worldPos.y * cam.zoom;
         cam.lastDist = dist;
     }
+    if (dragDistance > 20) document.getElementById('point-menu').style.display = "none";
     cam.clamp(); 
-    window.dispatchEvent(new CustomEvent('camera_move', { 
-        detail: { x: cam.x, y: cam.y, zoom: cam.zoom } 
-    }));
+    triggerCamMove();
 }, { passive: false });
 
 canvas.addEventListener('touchend', (e) => {
     cam.isDragging = false;
-    if (dragDistance < 10 && e.changedTouches.length > 0 && e.touches.length === 0) {
+    if (dragDistance < 15 && e.changedTouches.length > 0 && e.touches.length === 0) {
         handleInput(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
     }
 });
 
-// --- ЦИКЛ ---
+// --- ГЛАВНЫЙ ЦИКЛ ---
+
 function loop() {
     cam.begin();
     if (mapImg.complete) {
         cam.ctx.drawImage(mapImg, 0, 0, 1600, 1600);
     }
-    
-    // Передаем myPlayerName для правильной подсветки "ВАШ КОНТРОЛЬ"
-    pointsMgr.draw(cam.ctx, myPlayerName);
-
+    pointsMgr.draw(cam.ctx, myPlayerKey);
     cam.end();
-    updateCooldownUI();
+
+    const now = Date.now();
+    const cooldownElem = document.getElementById('cooldown-timer');
+    if (cooldownElem) {
+        if (playerCooldownEnd > now) {
+            cooldownElem.style.display = 'block';
+            cooldownElem.innerText = `ПЕРЕЗАРЯДКА: ${Math.ceil((playerCooldownEnd - now)/1000)}s`;
+        } else {
+            cooldownElem.style.display = 'none';
+        }
+    }
+
     requestAnimationFrame(loop);
 }
 loop();

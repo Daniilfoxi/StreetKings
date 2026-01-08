@@ -12,28 +12,28 @@ let points = [
     { id: 3, name: "ОФИС", x: 800, y: 1200, owner: 'neutral', ownerName: "ГОСУДАРСТВО", isCapturing: false, level: 1, income: 10, lastCapturedAt: 0 }
 ];
 
-// Хранилища данных игроков (имя игрока является ключом)
 let playerBalances = {}; 
 let playerNames = {}; 
 let playerCooldowns = {}; 
 
-// --- ЛОГИКА НОВОСТЕЙ ---
+// Вспомогательная функция для чистки имени (синхронизация с Telegram)
+function normalize(name) {
+    if (!name) return "unknown";
+    return String(name).toLowerCase().replace('@', '').trim();
+}
+
 const cityEvents = [
     "Полиция провела рейд в южном порту. Контрабанда изъята.",
     "Мэр обещает покончить с преступностью к концу года.",
     "Курс доллара стабилен: мафия контролирует обменники.",
-    "Слухи: в городе появилась новая банда из соседнего штата.",
-    "Внимание: замечена активность ФБР в центре города.",
-    "Подпольные бои в самом разгаре. Ставки приняты.",
-    "Местная газета: 'Кто станет королем ночных улиц?'",
-    "Шериф объявил награду за головы лидеров банд."
+    "Внимание: замечена активность ФБР в центре города."
 ];
 
 function broadcastNews(text) {
     io.emit('news_update', text);
 }
 
-// Случайные новости города каждые 2 минуты
+// Новости каждые 2 минуты
 setInterval(() => {
     const randomNews = cityEvents[Math.floor(Math.random() * cityEvents.length)];
     broadcastNews(`📰 ГОРЯЧИЕ НОВОСТИ: ${randomNews}`);
@@ -43,130 +43,110 @@ setInterval(() => {
 io.on('connection', (socket) => {
     let currentUserKey = null; 
 
-    // 1. Авторизация игрока по имени из Telegram
-    socket.on('set_name', (name) => {
-        currentUserKey = name;
+    // 1. Авторизация
+    socket.on('set_name', (rawName) => {
+        currentUserKey = normalize(rawName);
         
         if (!playerBalances[currentUserKey]) {
-            playerBalances[currentUserKey] = 1000;
+            playerBalances[currentUserKey] = 100000000; // Стартовый капитал
         }
-        playerNames[currentUserKey] = name;
+        playerNames[currentUserKey] = rawName;
 
         socket.emit('init', points);
         socket.emit('money_update', playerBalances[currentUserKey]);
+        socket.emit('set_name_confirmed', currentUserKey);
 
         if (playerCooldowns[currentUserKey] && playerCooldowns[currentUserKey] > Date.now()) {
             socket.emit('player_cooldown', playerCooldowns[currentUserKey]);
         }
-        
-        console.log(`Игрок ${currentUserKey} зашел в сеть`);
     });
 
-    // 2. Начисление дохода (1 раз в секунду)
+    // Доход раз в секунду
     const moneyInterval = setInterval(() => {
         if (!currentUserKey) return;
-
         let totalIncome = 0;
-        points.forEach(p => {
-            if (p.owner === currentUserKey) totalIncome += p.income;
+        points.forEach(p => { 
+            if (p.owner === currentUserKey) totalIncome += p.income; 
         });
-        
         if (totalIncome > 0) {
             playerBalances[currentUserKey] += totalIncome;
             socket.emit('money_update', playerBalances[currentUserKey]);
         }
     }, 1000);
 
-    // 3. Улучшение здания
+    // --- УЛУЧШЕНИЕ ЗДАНИЯ ---
     socket.on('upgrade_point', (id) => {
-        if (!currentUserKey) return;
+        if (!currentUserKey) return socket.emit('error_msg', "Ошибка авторизации!");
         
         const p = points.find(pt => pt.id === id);
         const upgradeCost = 5000;
 
-        if (p && p.owner === currentUserKey) {
-            if (p.level >= 5) return socket.emit('error_msg', "Максимальный уровень!");
-            if (p.isCapturing) return socket.emit('error_msg', "Объект под атакой!");
-
-            if (playerBalances[currentUserKey] >= upgradeCost) {
-                playerBalances[currentUserKey] -= upgradeCost;
-                p.level += 1;
-                p.income += 5; 
+        if (p) {
+            if (p.owner === currentUserKey) {
+                if (p.level >= 5) return socket.emit('error_msg', "Максимальный уровень достигнут!");
                 
-                io.emit('update', p); 
-                socket.emit('money_update', playerBalances[currentUserKey]);
-                broadcastNews(`📈 БИЗНЕС: ${currentUserKey} улучшил ${p.name} до LVL ${p.level}`);
+                if (playerBalances[currentUserKey] >= upgradeCost) {
+                    playerBalances[currentUserKey] -= upgradeCost;
+                    p.level += 1;
+                    p.income += 10; // Существенный бонус к доходу за апгрейд
+                    
+                    io.emit('update', p); 
+                    socket.emit('money_update', playerBalances[currentUserKey]);
+                    broadcastNews(`📈 БИЗНЕС: ${playerNames[currentUserKey]} улучшил ${p.name} до уровня ${p.level}!`);
+                } else {
+                    socket.emit('error_msg', `Нужно $${upgradeCost}`);
+                }
             } else {
-                socket.emit('error_msg', "Недостаточно денег ($5000)");
+                socket.emit('error_msg', "Это не ваше здание!");
             }
         }
     });
 
-    // 4. Захват здания
+    // --- ЗАХВАТ ЗДАНИЯ ---
     socket.on('capture', (id) => {
         if (!currentUserKey) return;
-
         const p = points.find(pt => pt.id === id);
         const now = Date.now();
+        
+        if (!p || p.owner === currentUserKey || p.isCapturing) return;
 
-        if (!p || p.owner === currentUserKey) return;
-
-        // Проверка личного КД игрока
         if (playerCooldowns[currentUserKey] && playerCooldowns[currentUserKey] > now) {
             return socket.emit('player_cooldown', playerCooldowns[currentUserKey]);
         }
-
-        // Проверка защиты точки (КД после последнего захвата)
         if (p.lastCapturedAt + 30000 > now) {
-            return socket.emit('error_msg', "Объект под защитой полиции после штурма!");
+            return socket.emit('error_msg', "Объект под защитой полиции!");
         }
 
-        if (!p.isCapturing) {
-            p.isCapturing = true;
-            p.captureStart = now;
-            p.captureEnd = now + 5000;
-            p.attacker = currentUserKey;
-            p.attackerName = playerNames[currentUserKey] || "Аноним";
+        p.isCapturing = true;
+        p.captureStart = now;
+        p.captureEnd = now + 5000;
+        p.attacker = currentUserKey;
+        p.attackerName = playerNames[currentUserKey];
 
-            io.emit('update', p);
-            broadcastNews(`⚔️ КРИМИНАЛ: ${p.attackerName} начал штурм объекта ${p.name}!`);
+        io.emit('update', p);
+        broadcastNews(`⚔️ ШТУРМ: ${p.attackerName} атакует ${p.name}!`);
 
-            setTimeout(() => {
-                if (p.attacker === currentUserKey && p.isCapturing) {
-                    const oldOwner = p.ownerName;
-                    p.owner = currentUserKey;
-                    p.ownerName = playerNames[currentUserKey];
-                    p.isCapturing = false;
-                    p.lastCapturedAt = Date.now(); 
-                    p.level = 1; 
-                    p.income = 10;
-                    
-                    playerCooldowns[currentUserKey] = Date.now() + 60000; // 1 мин КД
-                    
-                    io.emit('update', p);
-                    socket.emit('player_cooldown', playerCooldowns[currentUserKey]);
-                    broadcastNews(`🚩 ВЛАСТЬ: ${p.ownerName} захватил ${p.name}, выбив оттуда ${oldOwner}!`);
-                }
-            }, 5000);
-        }
+        setTimeout(() => {
+            if (p.attacker === currentUserKey && p.isCapturing) {
+                p.owner = currentUserKey;
+                p.ownerName = playerNames[currentUserKey];
+                p.isCapturing = false;
+                p.lastCapturedAt = Date.now(); 
+                p.level = 1; 
+                p.income = 10;
+                playerCooldowns[currentUserKey] = Date.now() + 60000; // КД на следующий захват
+                
+                io.emit('update', p);
+                socket.emit('player_cooldown', playerCooldowns[currentUserKey]);
+                broadcastNews(`🚩 ЗАХВАТ: ${p.ownerName} теперь контролирует ${p.name}!`);
+            }
+        }, 5000);
     });
 
     socket.on('disconnect', () => {
         clearInterval(moneyInterval);
-        if (currentUserKey) {
-            points.forEach(p => {
-                if (p.isCapturing && p.attacker === currentUserKey) {
-                    p.isCapturing = false;
-                    io.emit('update', p);
-                }
-            });
-        }
     });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`--- MAFIA CITY SERVER STARTED ---`);
-    console.log(`Port: ${PORT}`);
-    broadcastNews("🚨 ГОРОД ПРОСНУЛСЯ. НОВАЯ СМЕНА ВЛАСТИ НАЧИНАЕТСЯ.");
-});
+const PORT = 3000;
+server.listen(PORT, () => console.log(`--- SERVER READY ON PORT ${PORT} ---`));

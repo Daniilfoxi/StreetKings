@@ -11,7 +11,9 @@
         :root {
             --gold: #d4af37;
             --dark: #0a0a0a;
-            --glass: rgba(0, 0, 0, 0.7);
+            --glass: rgba(0, 0, 0, 0.85);
+            --green: #4cd964;
+            --red: #ff3b30;
         }
 
         body { 
@@ -29,11 +31,10 @@
             background: var(--dark);
         }
 
+        /* ОСНОВНОЙ ИНТЕРФЕЙС */
         #ui-layer { 
             position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
+            top: 0; left: 0; width: 100%; 
             padding: env(safe-area-inset-top) 15px 0 15px; 
             box-sizing: border-box;
             pointer-events: none; 
@@ -57,10 +58,84 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             backdrop-filter: blur(5px);
+            pointer-events: auto;
         }
 
-        #coords { font-size: 11px; opacity: 0.8; margin-top: 4px; }
+        #news-ticker {
+            margin-top: 10px;
+            background: rgba(139, 0, 0, 0.8);
+            border-top: 1px solid var(--red);
+            border-bottom: 1px solid var(--red);
+            color: white;
+            padding: 5px 0;
+            overflow: hidden;
+            white-space: nowrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
 
+        #news-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: ticker 25s linear infinite;
+        }
+
+        /* ИГРОВОЕ МЕНЮ ЗДАНИЯ */
+        #point-menu {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--glass);
+            border: 2px solid var(--gold);
+            padding: 25px;
+            border-radius: 20px;
+            z-index: 1000;
+            width: 280px;
+            text-align: center;
+            color: white;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 0 40px rgba(0,0,0,0.9);
+        }
+
+        #menu-title {
+            margin: 0 0 15px 0;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 20px;
+        }
+
+        #menu-info {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            text-align: left;
+            margin-bottom: 20px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .menu-btn {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .menu-btn:active { transform: scale(0.96); }
+
+        #btn-upgrade { background: var(--green); color: #000; }
+        #btn-close { background: #333; color: white; margin-bottom: 0; }
+
+        /* ВСПОМОГАТЕЛЬНОЕ */
         #loader {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -70,48 +145,7 @@
             align-items: center;
             color: var(--gold);
             font-family: 'Courier New', monospace;
-            z-index: 100;
-            transition: opacity 0.5s;
-        }
-
-        #cooldown-timer {
-            display: none; /* Скрыт по умолчанию */
-            position: fixed;
-            bottom: 40px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 59, 48, 0.9); /* Красный мафиозный цвет */
-            color: white;
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            z-index: 20;
-            border: 2px solid white;
-            box-shadow: 0 0 20px rgba(255, 59, 48, 0.6);
-            pointer-events: none;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        #news-ticker {
-            margin-top: 10px;
-            background: rgba(139, 0, 0, 0.8); /* Темно-красный "тревожный" цвет */
-            border-top: 1px solid #ff3b30;
-            border-bottom: 1px solid #ff3b30;
-            color: white;
-            padding: 5px 0;
-            overflow: hidden;
-            white-space: nowrap;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        #news-content {
-            display: inline-block;
-            padding-left: 100%;
-            animation: ticker 25s linear infinite;
+            z-index: 2000;
         }
 
         @keyframes ticker {
@@ -122,22 +156,31 @@
 </head>
 <body>
 
-    <div id="loader">INITIALIZING NETWORK...</div>
+    <div id="loader">INITIALIZING MAFIA NETWORK...</div>
 
     <div id="ui-layer">
         <div class="stats-container">
             <div>
                 <div class="stat-box" id="money-display">$ 0</div>
-                <div id="coords" class="stat-box" style="border:none; background:none;">X: 0 Y: 0</div>
+                <div id="coords" style="color: white; font-size: 10px; margin-top: 5px; font-family: monospace; opacity: 0.6;">X: 0 Y: 0</div>
             </div>
             <div class="stat-box" id="zoom">100%</div>
         </div>
+        
         <div id="news-ticker">
-            <div id="news-content">ДОБРО ПОЖАЛОВАТЬ В ГОРОД ГРЕХОВ. СЛЕДИТЕ ЗА НОВОСТЯМИ...</div>
+            <div id="news-content">ЗАГРУЗКА КРИМИНАЛЬНЫХ СВОДОК...</div>
         </div>
     </div>
 
-    <div id="cooldown-timer">ПЕРЕЗАРЯДКА: 60s</div>
+    <div id="point-menu">
+        <h2 id="menu-title">ОБЪЕКТ</h2>
+        <div id="menu-info">
+            </div>
+        <button id="btn-upgrade" class="menu-btn">УЛУЧШИТЬ ($5000)</button>
+        <button id="btn-close" class="menu-btn">ЗАКРЫТЬ</button>
+    </div>
+
+    <div id="cooldown-timer" style="display:none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; z-index: 100;"></div>
 
     <canvas id="gameCanvas"></canvas>
 
@@ -146,67 +189,42 @@
     <script src="pointsManager.js"></script> 
     <script src="game.js"></script>
 
-<script>
-    // 1. Инициализация Telegram WebApp
-    let playerName = "Unknown Mafioso";
-    
-    if (window.Telegram && window.Telegram.WebApp) {
-        const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
-        tg.enableClosingConfirmation();
-        tg.headerColor = '#000000';
+    <script>
+        window.PLAYER_NAME = "Unknown Mafioso";
 
-        const user = tg.initDataUnsafe?.user;
-        if (user) {
-            playerName = user.username ? `@${user.username}` : user.first_name;
-        }
-    }
-
-    // 2. Безопасная отправка имени на сервер
-    function initSocketConnection() {
-        // Проверяем наличие сокета в глобальной области
-        const s = window.socket || (typeof socket !== 'undefined' ? socket : null);
-        
-        if (s) {
-            if (s.connected) {
-                s.emit('set_name', playerName);
-                console.log("Name sent to server:", playerName);
-            } else {
-                // Если сокет есть, но еще не подключен, ждем события connect
-                s.on('connect', () => {
-                    s.emit('set_name', playerName);
-                });
+        if (window.Telegram && window.Telegram.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            const user = tg.initDataUnsafe?.user;
+            if (user) {
+                window.PLAYER_NAME = user.username ? `@${user.username}` : user.first_name;
             }
-        } else {
-            // Если game.js еще не загрузился, пробуем снова через 100мс
-            setTimeout(initSocketConnection, 100);
         }
-    }
-    initSocketConnection();
 
-    // 3. Обработка загрузки карты
-    window.addEventListener('map_loaded', () => {
-        const loader = document.getElementById('loader');
-        if (loader) {
-            loader.style.opacity = '0';
-            setTimeout(() => loader.remove(), 500);
+        function syncPlayerWithServer() {
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('set_name', window.PLAYER_NAME);
+            } else {
+                setTimeout(syncPlayerWithServer, 500);
+            }
         }
-    });
+        syncPlayerWithServer();
 
-    // 4. Обновление UI: координаты и зум
-    // Добавим в loop() в game.js вызов события camera_move для этого
-    window.addEventListener('camera_move', (e) => {
-        const coords = document.getElementById('coords');
-        const zoomDisplay = document.getElementById('zoom');
-        
-        if (coords) {
-            coords.innerText = `X: ${Math.round(e.detail.x)} Y: ${Math.round(e.detail.y)}`;
-        }
-        if (zoomDisplay && e.detail.zoom) {
-            zoomDisplay.innerText = `${Math.round(e.detail.zoom * 100)}%`;
-        }
-    });
-</script>
+        window.addEventListener('map_loaded', () => {
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 500);
+            }
+        });
+
+        window.addEventListener('camera_move', (e) => {
+            const coords = document.getElementById('coords');
+            const zoomDisplay = document.getElementById('zoom');
+            if (coords) coords.innerText = `X: ${Math.round(e.detail.x)} Y: ${Math.round(e.detail.y)}`;
+            if (zoomDisplay) zoomDisplay.innerText = `${Math.round(e.detail.zoom * 100)}%`;
+        });
+    </script>
 </body>
 </html>
