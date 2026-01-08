@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MAFIA: CITY CONTROL</title>
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        :root {
+            --gold: #d4af37;
+            --dark: #0a0a0a;
+            --glass: rgba(0, 0, 0, 0.7);
+        }
+
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-user-select: none; /* Запрет выделения текста */
+            user-select: none;
+        }
+
+        /* Канвас на весь экран */
+        canvas { 
+            display: block; 
+            touch-action: none; 
+            background: var(--dark);
+        }
+
+        /* Верхний слой интерфейса */
+        #ui-layer { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            padding: env(safe-area-inset-top) 15px 0 15px; /* Учет выреза челки */
+            box-sizing: border-box;
+            pointer-events: none; 
+            z-index: 10;
+        }
+
+        .stats-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-top: 10px;
+        }
+
+        .stat-box {
+            background: var(--glass);
+            border-left: 3px solid var(--gold);
+            padding: 8px 12px;
+            color: var(--gold);
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            backdrop-filter: blur(5px);
+        }
+
+        #coords { font-size: 11px; opacity: 0.8; margin-top: 4px; }
+
+        /* Элемент загрузки */
+        #loader {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--gold);
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">LOADING UNDERWORLD...</div>
+
+    <div id="ui-layer">
+        <div class="stats-container">
+            <div>
+                <div class="stat-box" id="money-display">$ 0</div>
+                <div id="coords" class="stat-box" style="border:none; background:none;">X: 0 Y: 0</div>
+            </div>
+            <div class="stat-box" id="zoom">100%</div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="camera.js"></script>
+    <script src="pointsManager.js"></script> 
+    <script src="game.js"></script>
+
+    <script>
+        // Сообщаем Телеграму, что приложение готово
+        if (window.Telegram && window.Telegram.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand(); // Разворачиваем на весь экран
+            tg.enableClosingConfirmation(); // Подтверждение выхода
+            tg.headerColor = '#000000'; // Цвет шапки
+        }
+
+        // Убираем лоадер, когда картинка карты загрузится (событие из game.js)
+        window.addEventListener('map_loaded', () => {
+            document.getElementById('loader').style.opacity = '0';
+            setTimeout(() => document.getElementById('loader').remove(), 500);
+        });
+    </script>
+</body>
+</html>
