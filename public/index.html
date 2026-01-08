@@ -73,6 +73,51 @@
             z-index: 100;
             transition: opacity 0.5s;
         }
+
+        #cooldown-timer {
+            display: none; /* Скрыт по умолчанию */
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 59, 48, 0.9); /* Красный мафиозный цвет */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            z-index: 20;
+            border: 2px solid white;
+            box-shadow: 0 0 20px rgba(255, 59, 48, 0.6);
+            pointer-events: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #news-ticker {
+            margin-top: 10px;
+            background: rgba(139, 0, 0, 0.8); /* Темно-красный "тревожный" цвет */
+            border-top: 1px solid #ff3b30;
+            border-bottom: 1px solid #ff3b30;
+            color: white;
+            padding: 5px 0;
+            overflow: hidden;
+            white-space: nowrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        #news-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: ticker 25s linear infinite;
+        }
+
+        @keyframes ticker {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
     </style>
 </head>
 <body>
@@ -87,7 +132,12 @@
             </div>
             <div class="stat-box" id="zoom">100%</div>
         </div>
+        <div id="news-ticker">
+            <div id="news-content">ДОБРО ПОЖАЛОВАТЬ В ГОРОД ГРЕХОВ. СЛЕДИТЕ ЗА НОВОСТЯМИ...</div>
+        </div>
     </div>
+
+    <div id="cooldown-timer">ПЕРЕЗАРЯДКА: 60s</div>
 
     <canvas id="gameCanvas"></canvas>
 
@@ -96,48 +146,67 @@
     <script src="pointsManager.js"></script> 
     <script src="game.js"></script>
 
-    <script>
-        // 1. Инициализация Telegram WebApp
-        let playerName = "Unknown Mafioso";
-        
-        if (window.Telegram && window.Telegram.WebApp) {
-            const tg = window.Telegram.WebApp;
-            tg.ready();
-            tg.expand();
-            tg.enableClosingConfirmation();
-            tg.headerColor = '#000000';
+<script>
+    // 1. Инициализация Telegram WebApp
+    let playerName = "Unknown Mafioso";
+    
+    if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        tg.enableClosingConfirmation();
+        tg.headerColor = '#000000';
 
-            // Получаем данные пользователя
-            const user = tg.initDataUnsafe?.user;
-            if (user) {
-                // Приоритет: username -> first_name
-                playerName = user.username ? `@${user.username}` : user.first_name;
-            }
-            
-            // Отправляем имя на сервер сразу после установки соединения в game.js
-            // Мы подождем немного, пока socket.io инициализируется
-            const checkSocket = setInterval(() => {
-                if (typeof socket !== 'undefined' && socket.connected) {
-                    socket.emit('set_name', playerName);
-                    clearInterval(checkSocket);
-                }
-            }, 500);
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            playerName = user.username ? `@${user.username}` : user.first_name;
         }
+    }
 
-        // 2. Обработка загрузки карты
-        window.addEventListener('map_loaded', () => {
-            const loader = document.getElementById('loader');
-            if (loader) {
-                loader.style.opacity = '0';
-                setTimeout(() => loader.remove(), 500);
+    // 2. Безопасная отправка имени на сервер
+    function initSocketConnection() {
+        // Проверяем наличие сокета в глобальной области
+        const s = window.socket || (typeof socket !== 'undefined' ? socket : null);
+        
+        if (s) {
+            if (s.connected) {
+                s.emit('set_name', playerName);
+                console.log("Name sent to server:", playerName);
+            } else {
+                // Если сокет есть, но еще не подключен, ждем события connect
+                s.on('connect', () => {
+                    s.emit('set_name', playerName);
+                });
             }
-        });
+        } else {
+            // Если game.js еще не загрузился, пробуем снова через 100мс
+            setTimeout(initSocketConnection, 100);
+        }
+    }
+    initSocketConnection();
 
-        // 3. Обновление координат (опционально для UI)
-        window.addEventListener('camera_move', (e) => {
-            const coords = document.getElementById('coords');
-            if (coords) coords.innerText = `X: ${Math.round(e.detail.x)} Y: ${Math.round(e.detail.y)}`;
-        });
-    </script>
+    // 3. Обработка загрузки карты
+    window.addEventListener('map_loaded', () => {
+        const loader = document.getElementById('loader');
+        if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => loader.remove(), 500);
+        }
+    });
+
+    // 4. Обновление UI: координаты и зум
+    // Добавим в loop() в game.js вызов события camera_move для этого
+    window.addEventListener('camera_move', (e) => {
+        const coords = document.getElementById('coords');
+        const zoomDisplay = document.getElementById('zoom');
+        
+        if (coords) {
+            coords.innerText = `X: ${Math.round(e.detail.x)} Y: ${Math.round(e.detail.y)}`;
+        }
+        if (zoomDisplay && e.detail.zoom) {
+            zoomDisplay.innerText = `${Math.round(e.detail.zoom * 100)}%`;
+        }
+    });
+</script>
 </body>
 </html>
