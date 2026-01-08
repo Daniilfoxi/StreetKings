@@ -13,6 +13,8 @@ let myPlayerKey = "";
 let selectedPointId = null; 
 
 mapImg.onload = () => {
+    cam.ctx.imageSmoothingEnabled = true;
+    cam.ctx.imageSmoothingQuality = 'high';
     cam.updateMinZoom();
     cam.setToMinZoom();
     window.dispatchEvent(new Event('map_loaded'));
@@ -235,8 +237,16 @@ canvas.addEventListener('touchend', (e) => {
 function loop() {
     cam.begin();
     if (mapImg.complete) {
-        cam.ctx.drawImage(mapImg, 0, 0, 1600, 1600);
-    }
+            // 1. Сначала настраиваем «очки» (фильтр)
+            cam.ctx.filter = "brightness(0.6) contrast(1.1)"; 
+            
+            // 2. Рисуем карту ОДИН РАЗ (она сразу нарисуется темной и четкой)
+            cam.ctx.drawImage(mapImg, 0, 0, 1600, 1600);
+            
+            // 3. Снимаем «очки», чтобы всё остальное (здания) было ярким
+            cam.ctx.filter = "none";
+        }
+    
     pointsMgr.draw(cam.ctx, myPlayerKey);
     cam.end();
 
