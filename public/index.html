@@ -7,215 +7,157 @@
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
-<style>
+    <style>
         :root {
             --gold: #d4af37;
-            --dark-gold: #8a6d1d;
-            --dark: #050505;
-            --glass: rgba(10, 10, 10, 0.9);
-            --blood: #8b0000;
-            --green: #2ecc71;
-            --ui-font: 'Courier New', monospace;
+            --dark: #0a0a0a;
+            --glass: rgba(0, 0, 0, 0.85);
+            --green: #4cd964;
+            --red: #ff3b30;
+        }
+        html, body {
+            position: fixed; /* Замораживает основной слой */
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Убирает скролл-бары */
+            touch-action: none; /* Отключает браузерные жесты на корню */
         }
 
+        #gameCanvas {
+            touch-action: none; /* Карта будет слушаться только твоего кода */
+        }
         body { 
             margin: 0; 
             overflow: hidden; 
-            background: var(--dark); 
-            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: #000; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             -webkit-user-select: none;
             user-select: none;
-        }
-
-        /* Эффект старой кинопленки и виньетки поверх всего */
-        body::after {
-            content: "";
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.8) 150%);
-            pointer-events: none;
-            z-index: 100;
         }
 
         canvas { 
             display: block; 
             touch-action: none; 
-            background: #000;
+            background: var(--dark);
         }
 
-        /* ИНТЕРФЕЙС ГРУППИРОВКИ */
+        /* ОСНОВНОЙ ИНТЕРФЕЙС */
         #ui-layer { 
             position: fixed; 
             top: 0; left: 0; width: 100%; 
-            padding: env(safe-area-inset-top) 20px 0 20px; 
+            padding: env(safe-area-inset-top) 15px 0 15px; 
             box-sizing: border-box;
             pointer-events: none; 
-            z-index: 150;
+            z-index: 10;
         }
 
         .stats-container {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-top: 15px;
+            margin-top: 10px;
         }
 
         .stat-box {
             background: var(--glass);
-            border: 1px solid var(--dark-gold);
-            box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.1);
-            padding: 10px 15px;
+            border-left: 3px solid var(--gold);
+            padding: 8px 12px;
             color: var(--gold);
-            font-family: var(--ui-font);
-            font-size: 16px;
-            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            backdrop-filter: blur(8px);
+            letter-spacing: 1px;
+            backdrop-filter: blur(5px);
             pointer-events: auto;
         }
 
         #news-ticker {
-            margin-top: 15px;
-            background: linear-gradient(90deg, transparent, var(--blood), transparent);
-            border-top: 1px solid #ff0000;
-            border-bottom: 1px solid #ff0000;
-            color: #eee;
-            padding: 6px 0;
+            margin-top: 10px;
+            background: rgba(139, 0, 0, 0.8);
+            border-top: 1px solid var(--red);
+            border-bottom: 1px solid var(--red);
+            color: white;
+            padding: 5px 0;
             overflow: hidden;
             white-space: nowrap;
-            font-family: var(--ui-font);
-            font-size: 12px;
-            text-shadow: 1px 1px 2px #000;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
         }
 
         #news-content {
             display: inline-block;
             padding-left: 100%;
-            animation: ticker 30s linear infinite;
+            animation: ticker 25s linear infinite;
         }
 
-        /* МЕНЮ СИНДИКАТА */
-       /* ВАРИАНТ: CRIMSON & CHROME TERMINAL */
-#point-menu {
-    display: none;
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(5, 5, 5, 0.95);
-    /* Анимированная градиентная рамка */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 0;
-    z-index: 1000;
-    width: 330px;
-    color: #fff;
-    backdrop-filter: blur(15px);
-    /* Эффект свечения */
-    box-shadow: 0 0 40px rgba(0, 0, 0, 1), 0 0 15px rgba(139, 0, 0, 0.3);
-    /* Скошенные углы через clip-path */
-    clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
-}
+        /* ИГРОВОЕ МЕНЮ ЗДАНИЯ */
+        #point-menu {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--glass);
+            border: 2px solid var(--gold);
+            padding: 25px;
+            border-radius: 20px;
+            z-index: 1000;
+            width: 280px;
+            text-align: center;
+            color: white;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 0 40px rgba(0,0,0,0.9);
+        }
 
-/* Заголовок с эффектом сканера */
-.menu-header {
-    background: linear-gradient(90deg, #8b0000 0%, #222 100%);
-    padding: 15px 25px;
-    text-align: left;
-    border-bottom: 2px solid #8b0000;
-    position: relative;
-    overflow: hidden;
-}
+        #menu-title {
+            margin: 0 0 15px 0;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 20px;
+        }
 
-.menu-header::after {
-    content: "";
-    position: absolute;
-    top: 0; left: -100%;
-    width: 100%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    animation: scanLine 3s infinite;
-}
+        #menu-info {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            text-align: left;
+            margin-bottom: 20px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
 
-@keyframes scanLine {
-    0% { left: -100%; }
-    100% { left: 100%; }
-}
+        .menu-btn {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+        }
 
-#menu-title {
-    margin: 0;
-    color: #fff;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    font-size: 18px;
-    font-family: 'Orbitron', sans-serif; /* Подойдет любой строгий шрифт */
-}
+        .menu-btn:active { transform: scale(0.96); }
 
-.menu-body {
-    padding: 25px;
-}
+        #btn-upgrade { background: var(--green); color: #000; }
+        #btn-close { background: #333; color: white; margin-bottom: 0; }
 
-#menu-info {
-    background: rgba(255, 255, 255, 0.02);
-    padding: 15px;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    text-align: left;
-    margin-bottom: 25px;
-    border-left: 3px solid #8b0000;
-    line-height: 1.6;
-}
-
-#menu-info b { color: #8b0000; }
-
-.menu-btn {
-    width: 100%;
-    padding: 15px;
-    margin-bottom: 12px;
-    border: 1px solid #444;
-    background: transparent;
-    color: #fff;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
-}
-
-#btn-upgrade {
-    background: #8b0000;
-    border: none;
-    color: white;
-}
-
-#btn-upgrade:hover {
-    background: #ff0000;
-    transform: scale(1.03);
-    box-shadow: 0 0 20px rgba(255, 0, 0, 0.4);
-}
-
-#btn-close {
-    background: rgba(255, 255, 255, 0.05);
-    color: #888;
-}
-
-#btn-close:hover {
-    background: #333;
-    color: #fff;
-}
-
-        /* ЗАГРУЗКА */
+        /* ВСПОМОГАТЕЛЬНОЕ */
         #loader {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background: #000;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             color: var(--gold);
-            font-family: var(--ui-font);
+            font-family: 'Courier New', monospace;
             z-index: 2000;
-            letter-spacing: 5px;
         }
 
         @keyframes ticker {
@@ -242,17 +184,13 @@
         </div>
     </div>
 
-<div id="point-menu">
-    <div class="menu-header">
-        <h2 id="menu-title">ASSET SECURED</h2>
-    </div>
-    <div class="menu-body">
+    <div id="point-menu">
+        <h2 id="menu-title">ОБЪЕКТ</h2>
         <div id="menu-info">
             </div>
-        <button id="btn-upgrade" class="menu-btn">UPGRADE STATUS</button>
-        <button id="btn-close" class="menu-btn">RELEASE</button>
+        <button id="btn-upgrade" class="menu-btn">УЛУЧШИТЬ ($5000)</button>
+        <button id="btn-close" class="menu-btn">ЗАКРЫТЬ</button>
     </div>
-</div>
 
     <div id="cooldown-timer" style="display:none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; z-index: 100;"></div>
 
@@ -264,17 +202,49 @@
     <script src="game.js"></script>
 
     <script>
+        // 1. Инициализация и получение данных игрока
         window.PLAYER_NAME = "Unknown Mafioso";
 
         if (window.Telegram && window.Telegram.WebApp) {
             const tg = window.Telegram.WebApp;
             tg.ready();
-            tg.expand();
+            tg.expand(); // Разворачиваем на весь экран
+            
+            // ВАЖНО: Отключаем вертикальные свайпы, чтобы WebApp не закрывался при движении карты
+            if (tg.disableVerticalSwipes) {
+                tg.disableVerticalSwipes();
+            }
+
             const user = tg.initDataUnsafe?.user;
             if (user) {
                 window.PLAYER_NAME = user.username ? `@${user.username}` : user.first_name;
             }
+
+            // Сообщаем Telegram, какой цвет фона у нас (черный), чтобы шапка не выделялась
+            tg.setHeaderColor('#000000');
+            tg.setBackgroundColor('#000000');
         }
+
+        // 2. ЖЕСТКАЯ БЛОКИРОВКА системных свайпов браузера
+        // Этот кусок кода запрещает тянуть страницу вниз/вверх
+        document.addEventListener('touchstart', (e) => {
+            // Если на экране больше одного пальца (зум), или если мы на игровом поле
+            if (e.touches.length > 1) {
+                // Здесь можно разрешить зум, если твоя камера его поддерживает
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            // Блокируем стандартное поведение прокрутки страницы
+            if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // 3. Фикс для iOS: предотвращаем "резиновый" скролл
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 0) window.scrollTo(0, 0);
+        });
 
         function syncPlayerWithServer() {
             if (window.socket && window.socket.connected) {
