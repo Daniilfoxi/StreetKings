@@ -1,50 +1,48 @@
 class PointsManager {
     constructor() {
         this.points = [];
-        // Словарь иконок для разных типов зданий
         this.icons = {
             "ПОРТ": "🚢",
             "БАНК": "💰",
             "ОФИС": "🏢",
             "СКЛАД": "📦",
-            "ЗАВОД": "🏭"
+            "ЗАВОД": "🏭",
+            "LUXURY SHOP": "💎" // Иконка для магазина
         };
     }
 
-    // Синхронизация данных с сервером
     sync(data) {
         this.points = data;
     }
 
-    // Обновление конкретной точки
     updatePoint(data) {
         const p = this.points.find(pt => pt.id === data.id);
         if (p) Object.assign(p, data);
     }
 
-    // Проверка попадания по точке (для кликов)
     checkHit(worldX, worldY) {
         return this.points.find(p => Math.hypot(p.x - worldX, p.y - worldY) < 50);
     }
 
-    // ГЛАВНЫЙ МЕТОД ОТРИСОВКИ
     draw(ctx, myKey) {
         const now = Date.now();
 
         this.points.forEach(p => {
-            // ПРОВЕРКА ВЛАДЕЛЬЦА: теперь максимально простая и быстрая
-            // Мы сравниваем чистые ключи, которые подготовил сервер
+            // --- ЛОГИКА МАГАЗИНА (ОТДЕЛЬНАЯ ОТРИСОВКА) ---
+            if (p.type === 'shop') {
+                this.drawShop(ctx, p, now);
+                return; // Пропускаем остальную логику отрисовки для магазина
+            }
+
+            // --- ЛОГИКА ОБЫЧНЫХ ЗДАНИЙ ---
             const isOwner = myKey && p.owner === myKey;
             const isNeutral = p.owner === 'neutral';
-            
-            // 1. Цветовая схема
             let themeColor = isNeutral ? '#d4af37' : (isOwner ? '#4cd964' : '#ff3b30');
             
             let ownerText = "";
             const timeLeftPoint = Math.ceil((p.lastCapturedAt + 30000 - now) / 1000);
             const isProtected = timeLeftPoint > 0;
 
-            // Логика текста статуса
             if (p.isCapturing) {
                 ownerText = `🔥 ШТУРМ: ${p.attackerName}`;
                 themeColor = "#ffffff";
@@ -59,7 +57,6 @@ class PointsManager {
 
             ctx.save();
             
-            // --- ЭФФЕКТ: Пунктирный ореол вокруг своего здания ---
             if (isOwner && !p.isCapturing) {
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, 35, 0, Math.PI * 2);
@@ -70,10 +67,8 @@ class PointsManager {
                 ctx.setLineDash([]);
             }
 
-            // Анимация пульсации при штурме
             let pulse = p.isCapturing ? Math.sin(now / 150) * 10 : 0;
 
-            // 2. Ядро точки (Центральный круг)
             ctx.shadowBlur = isOwner ? 25 : 15 + pulse; 
             ctx.shadowColor = themeColor;
             ctx.fillStyle = themeColor;
@@ -82,20 +77,17 @@ class PointsManager {
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            // 3. Иконка здания
             ctx.font = "24px serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             const icon = this.icons[p.name.toUpperCase()] || "📍";
             ctx.fillText(icon, p.x, p.y);
 
-            // 4. Параметры информационной плашки
             const rectW = 210;
             const rectH = 70;
             const rectX = p.x - rectW / 2;
             const rectY = p.y - 120;
 
-            // Линия-пунктир от точки к плашке
             ctx.beginPath();
             ctx.setLineDash([5, 5]);
             ctx.moveTo(p.x, p.y - 35);
@@ -104,24 +96,20 @@ class PointsManager {
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // 5. Отрисовка самой плашки
             ctx.fillStyle = "rgba(10, 10, 10, 0.95)"; 
             ctx.strokeStyle = themeColor;
             ctx.lineWidth = isOwner ? 4 : 2; 
             this.roundRect(ctx, rectX, rectY, rectW, rectH, 12, true, true);
 
-            // Тексты на плашке: Название и Уровень
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 15px sans-serif";
             ctx.textAlign = "left";
             ctx.fillText(`${p.name} [LVL ${p.level}]`, rectX + 15, rectY + 28);
 
-            // Текст владельца
             ctx.fillStyle = themeColor;
             ctx.font = "900 11px monospace";
             ctx.fillText(ownerText, rectX + 15, rectY + 52);
 
-            // Доход (только если ты владелец)
             if (isOwner && !p.isCapturing) {
                 ctx.fillStyle = "#4cd964";
                 ctx.textAlign = "right";
@@ -129,7 +117,6 @@ class PointsManager {
                 ctx.fillText(`+$${p.income}/s`, rectX + rectW - 15, rectY + 52);
             }
 
-            // Индикатор прогресса захвата
             if (p.isCapturing && p.captureEnd > now) {
                 this.drawProgress(ctx, p, now);
             }
@@ -138,7 +125,44 @@ class PointsManager {
         });
     }
 
-    // Отрисовка кругового прогресс-бара
+    // --- НОВЫЙ МЕТОД: ОТРИСОВКА МАГАЗИНА ---
+    drawShop(ctx, p, now) {
+        ctx.save();
+        
+        // Золотое свечение
+        let pulse = Math.sin(now / 400) * 10;
+        ctx.shadowBlur = 20 + pulse;
+        ctx.shadowColor = "#d4af37";
+        
+        // Золотой ореол (внешний круг)
+        ctx.strokeStyle = "#d4af37";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 35 + pulse/4, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Ядро магазина
+        ctx.fillStyle = "#1a1a1a";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 25, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke(); // Золотая обводка ядра
+
+        // Иконка бриллианта
+        ctx.font = "28px serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("💎", p.x, p.y);
+
+        // Подпись под магазином
+        ctx.fillStyle = "#d4af37";
+        ctx.font = "bold 14px sans-serif";
+        ctx.shadowBlur = 0;
+        ctx.fillText("LUXURY SHOP", p.x, p.y + 55);
+
+        ctx.restore();
+    }
+
     drawProgress(ctx, p, now) {
         const total = p.captureEnd - p.captureStart;
         const current = now - p.captureStart;
@@ -158,7 +182,6 @@ class PointsManager {
         ctx.stroke();
     }
 
-    // Утилита для скругленных прямоугольников
     roundRect(ctx, x, y, width, height, radius, fill, stroke) {
         ctx.beginPath();
         ctx.moveTo(x + radius, y);

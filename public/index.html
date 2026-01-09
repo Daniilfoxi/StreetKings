@@ -164,6 +164,19 @@
             0% { transform: translate(0, 0); }
             100% { transform: translate(-100%, 0); }
         }
+        
+        #luxury-menu {
+            pointer-events: auto !important;
+        }
+
+        /* ЗАЩИТНЫЙ ЩИТ ОТ ПРОКЛИКИВАНИЯ */
+        #click-shield {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2100;
+            display: none;
+            background: transparent;
+        }
     </style>
 </head>
 <body>
@@ -192,8 +205,112 @@
         <button id="btn-close" class="menu-btn">ЗАКРЫТЬ</button>
     </div>
 
-    <div id="cooldown-timer" style="display:none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; z-index: 100;"></div>
+<div id="cooldown-timer" style="display:none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #ff3b30; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; z-index: 1001;"></div>
 
+<div id="luxury-menu" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1a1a; border: 3px solid #c5a059; color: white; padding: 20px; z-index: 2000; width: 85%; max-width: 500px; border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.8); font-family: 'Georgia', serif;">
+    
+    <div id="click-shield"></div>
+
+    <h2 style="color: #c5a059; text-align: center; margin-top: 0; letter-spacing: 2px;">PRESTIGE 1889</h2>
+    <p style="text-align: center; font-style: italic; color: #888; margin-bottom: 20px;">Предметы роскоши и статуса</p>
+
+    <div id="items-list" style="display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 5px;">
+        <div class="shop-item" id="item-Benz" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Экипаж Benz 1889</strong><br><small style="color: #4cd964;">Скорость +20%</small></div>
+            <button onpointerdown="buyItem('Benz', 15000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£15,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Villa" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Вилла "Бельведер"</strong><br><small style="color: #4cd964;">Престиж +100</small></div>
+            <button onpointerdown="buyItem('Villa', 50000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£50,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Casino" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Казино "Рояль"</strong><br><small style="color: #4cd964;">Доход +5%</small></div>
+            <button onpointerdown="buyItem('Casino', 120000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£120,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Diamond" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Бриллиант "Кохинур"</strong><br><small style="color: #4cd964;">Статус: Легенда</small></div>
+            <button onpointerdown="buyItem('Бриллиант Кохинур', 250000, 'Diamond')" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£250,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Watch" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Золотые часы Patek</strong><br><small style="color: #4cd964;">Авторитет +10</small></div>
+            <button onpointerdown="buyItem('Watch', 8000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£8,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Cane" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Трость с набалдашником</strong><br><small style="color: #4cd964;">Урон в ближнем бою</small></div>
+            <button onpointerdown="buyItem('Cane', 1500)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£1,500</button>
+        </div>
+
+        <div class="shop-item" id="item-Painting" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Оригинал Моне</strong><br><small style="color: #4cd964;">Престиж +200</small></div>
+            <button onpointerdown="buyItem('Painting', 45000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£45,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Ship" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Паровая яхта</strong><br><small style="color: #4cd964;">Морские перевозки</small></div>
+            <button onpointerdown="buyItem('Ship', 85000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£85,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Wine" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Погреб вин 1840г.</strong><br><small style="color: #4cd964;">Лояльность банд +15</small></div>
+            <button onpointerdown="buyItem('Wine', 12000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£12,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Horse" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Арабский скакун</strong><br><small style="color: #4cd964;">Скорость +5%</small></div>
+            <button onpointerdown="buyItem('Horse', 5000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£5,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Opera" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Личная ложа в Опере</strong><br><small style="color: #4cd964;">Связи в полиции</small></div>
+            <button onpointerdown="buyItem('Opera', 25000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£25,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Safe" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Бронированный сейф</strong><br><small style="color: #4cd964;">Защита от грабежа +30%</small></div>
+            <button onpointerdown="buyItem('Safe', 7000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£7,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Colt" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Золотой Кольт</strong><br><small style="color: #4cd964;">Урон +40%</small></div>
+            <button onpointerdown="buyItem('Colt', 18000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£18,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Library" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Частная библиотека</strong><br><small style="color: #4cd964;">Интеллект банд</small></div>
+            <button onpointerdown="buyItem('Library', 9000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£9,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Uniform" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Шелковый костюм</strong><br><small style="color: #4cd964;">Красноречие +20</small></div>
+            <button onpointerdown="buyItem('Uniform', 3500)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£3,500</button>
+        </div>
+
+        <div class="shop-item" id="item-Piano" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Рояль Steinway</strong><br><small style="color: #4cd964;">Культура +50</small></div>
+            <button onpointerdown="buyItem('Piano', 11000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£11,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Island" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Остров в Адриатике</strong><br><small style="color: #4cd964;">Секретное убежище</small></div>
+            <button onpointerdown="buyItem('Island', 450000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£450,000</button>
+        </div>
+
+        <div class="shop-item" id="item-Statue" style="border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div><strong style="color: #fff;">Золотая статуя дона</strong><br><small style="color: #4cd964;">Бессмертие в истории</small></div>
+            <button onpointerdown="buyItem('Statue', 100000)" style="background: #c5a059; border: none; padding: 8px; border-radius: 5px; font-weight: bold;">£100,000</button>
+        </div>
+    </div>
+
+        <button onclick="event.stopPropagation(); document.getElementById('luxury-menu').style.display='none'" 
+                style="margin-top: 20px; width: 100%; padding: 12px; background: #333; color: white; border: 1px solid #444; border-radius: 8px; cursor: pointer; font-weight: bold;">
+            ВЕРНУТЬСЯ В ГОРОД
+        </button>
+    </div>
     <canvas id="gameCanvas"></canvas>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -201,74 +318,123 @@
     <script src="pointsManager.js"></script> 
     <script src="game.js"></script>
 
-    <script>
-        // 1. Инициализация и получение данных игрока
-        window.PLAYER_NAME = "Unknown Mafioso";
+ <script>
+    // 1. Инициализация Telegram
+    const tg = window.Telegram?.WebApp;
+    window.PLAYER_NAME = "Unknown Mafioso";
+    let shopLocked = false; // Глобальный флаг блокировки
 
-        if (window.Telegram && window.Telegram.WebApp) {
-            const tg = window.Telegram.WebApp;
-            tg.ready();
-            tg.expand(); // Разворачиваем на весь экран
-            
-            // ВАЖНО: Отключаем вертикальные свайпы, чтобы WebApp не закрывался при движении карты
-            if (tg.disableVerticalSwipes) {
-                tg.disableVerticalSwipes();
-            }
+    if (tg) {
+        tg.ready();
+        tg.expand();
+        
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            window.PLAYER_NAME = user.username ? `@${user.username}` : user.first_name;
+        }
+    }
 
-            const user = tg.initDataUnsafe?.user;
-            if (user) {
-                window.PLAYER_NAME = user.username ? `@${user.username}` : user.first_name;
-            }
+    // Функция открытия магазина (вызывай её из pointsManager.js)
+    window.openLuxuryMenu = () => {
+        const menu = document.getElementById('luxury-menu');
+        const shield = document.getElementById('click-shield');
+        
+        shopLocked = true; // Блокируем логику
+        menu.style.display = 'block';
+        shield.style.display = 'block'; // Показываем щит
 
-            // Сообщаем Telegram, какой цвет фона у нас (черный), чтобы шапка не выделялась
-            tg.setHeaderColor('#000000');
-            tg.setBackgroundColor('#000000');
+        // Разрешаем клики только через 500мс
+        setTimeout(() => { 
+            shopLocked = false; 
+            shield.style.display = 'none'; // Убираем щит
+        }, 500);
+    };
+
+    // 2. Улучшенная функция покупки
+    function buyItem(name, price, idFallback) {
+        // Если флаг блокировки активен — игнорируем нажатие полностью
+        if (shopLocked) return;
+
+        if (window.event) {
+            window.event.stopPropagation();
+            window.event.preventDefault();
         }
 
-        // 2. ЖЕСТКАЯ БЛОКИРОВКА системных свайпов браузера
-        // Этот кусок кода запрещает тянуть страницу вниз/вверх
-        document.addEventListener('touchstart', (e) => {
-            // Если на экране больше одного пальца (зум), или если мы на игровом поле
-            if (e.touches.length > 1) {
-                // Здесь можно разрешить зум, если твоя камера его поддерживает
-            }
-        }, { passive: false });
+        const confirmText = `Вы желаете приобрести "${name}" за £${price.toLocaleString()}?`;
+        const sckt = window.socket; 
+        
+        if (!sckt) return;
 
-        document.addEventListener('touchmove', (e) => {
-            // Блокируем стандартное поведение прокрутки страницы
-            if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
-                e.preventDefault();
-            }
-        }, { passive: false });
+        const canUseTGPopup = tg && tg.isVersionAtLeast && tg.isVersionAtLeast('6.2');
 
-        // 3. Фикс для iOS: предотвращаем "резиновый" скролл
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 0) window.scrollTo(0, 0);
-        });
-
-        function syncPlayerWithServer() {
-            if (window.socket && window.socket.connected) {
-                window.socket.emit('set_name', window.PLAYER_NAME);
-            } else {
-                setTimeout(syncPlayerWithServer, 500);
+        if (canUseTGPopup) {
+            tg.showConfirm(confirmText, (ok) => {
+                if (ok) sckt.emit('buy_luxury', { name: name, price: price, id: idFallback || name });
+            });
+        } else {
+            if (window.confirm(confirmText)) {
+                sckt.emit('buy_luxury', { name: name, price: price, id: idFallback || name });
             }
         }
-        syncPlayerWithServer();
+    }
 
-        window.addEventListener('map_loaded', () => {
-            const loader = document.getElementById('loader');
-            if (loader) {
-                loader.style.opacity = '0';
-                setTimeout(() => loader.remove(), 500);
+    // 3. Синхронизация с сервером
+    function syncPlayerWithServer() {
+        if (window.socket && window.socket.connected) {
+            window.socket.emit('set_name', window.PLAYER_NAME);
+        } else {
+            setTimeout(syncPlayerWithServer, 500);
+        }
+    }
+    syncPlayerWithServer();
+
+   // 4. Логика уведомлений об успехе
+    window.addEventListener('load', () => {
+        const checkSocket = setInterval(() => {
+            if (window.socket) {
+                window.socket.on('buy_success', (itemName) => {
+                    window.alert("Поздравляем! Теперь вы владелец: " + itemName);
+                    
+                    const purchasedElement = document.getElementById('item-' + itemName);
+                    if (purchasedElement) {
+                        purchasedElement.style.transition = "all 0.5s ease";
+                        purchasedElement.style.opacity = "0";
+                        purchasedElement.style.transform = "translateX(50px)";
+                        
+                        setTimeout(() => {
+                            purchasedElement.remove();
+                            const remainingItems = document.querySelectorAll('.shop-item');
+                            if (remainingItems.length === 0) {
+                                document.getElementById('luxury-menu').style.display = 'none';
+                            }
+                        }, 500);
+                    }
+                });
+                clearInterval(checkSocket);
             }
-        });
+        }, 500);
+    });
 
-        window.addEventListener('camera_move', (e) => {
-            const coords = document.getElementById('coords');
-            const zoomDisplay = document.getElementById('zoom');
-            if (coords) coords.innerText = `X: ${Math.round(e.detail.x)} Y: ${Math.round(e.detail.y)}`;
-            if (zoomDisplay) zoomDisplay.innerText = `${Math.round(e.detail.zoom * 100)}%`;
-        });
-    </script>
+    // 5. Камера и Координаты
+    window.addEventListener('camera_move', (e) => {
+        const coords = document.getElementById('coords');
+        const zoomDisplay = document.getElementById('zoom');
+        if (coords) coords.innerText = `X: ${Math.round(e.detail.x)} Y: ${Math.round(e.detail.y)}`;
+        if (zoomDisplay) zoomDisplay.innerText = `${Math.round(e.detail.zoom * 100)}%`;
+    });
+
+    window.addEventListener('map_loaded', () => {
+        const loader = document.getElementById('loader');
+        if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => loader.remove(), 500);
+        }
+    });
+
+    // Блокировка скролла страницы (кроме списка товаров)
+    document.addEventListener('touchmove', (e) => {
+        if (!e.target.closest('#items-list')) e.preventDefault();
+    }, { passive: false });
+</script>
 </body>
 </html>

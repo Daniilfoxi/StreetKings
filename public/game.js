@@ -73,7 +73,8 @@ socket.on('player_cooldown', (endTime) => {
 });
 
 socket.on('error_msg', (msg) => {
-    window.Telegram?.WebApp ? window.Telegram.WebApp.showAlert(msg) : alert(msg);
+    // Просто используем обычный alert, он надежнее для старых версий
+    window.alert(msg);
 });
 
 // --- ЛОГИКА ИГРОВОГО МЕНЮ ---
@@ -95,6 +96,16 @@ function updateMenuUI(point) {
         </div>
     `;
 
+    upgradeBtn.onclick = (e) => {
+        e.stopPropagation(); // ОСТАНАВЛИВАЕТ передачу клика на карту
+        if (isItMe(point.owner)) {
+            socket.emit('upgrade_point', point.id);
+        } else {
+            socket.emit('capture', point.id);
+            menu.style.display = "none";
+        }
+    };
+
     if (isItMe(point.owner)) {
         upgradeBtn.style.display = "block";
         upgradeBtn.style.background = "#4cd964";
@@ -115,12 +126,21 @@ function handleInput(clientX, clientY) {
     if (dragDistance > 15) return;
 
     const now = Date.now();
-    const menu = document.getElementById('point-menu');
+    const pointMenu = document.getElementById('point-menu');
+    const luxuryMenu = document.getElementById('luxury-menu'); // Находим наше новое меню
     const worldCoords = cam.screenToWorld(clientX, clientY);
     const clickedPoint = pointsMgr.checkHit(worldCoords.x, worldCoords.y);
 
     if (clickedPoint) {
-        // Проверка кулдауна только для захвата
+        // --- ПРОВЕРКА НА МАГАЗИН ---
+        if (clickedPoint.type === 'shop') {
+            pointMenu.style.display = "none"; // Закрываем обычное меню, если было открыто
+            luxuryMenu.style.display = "block"; // Открываем магазин
+            selectedPointId = clickedPoint.id;
+            return; // Выходим, чтобы не сработала логика захвата ниже
+        }
+
+        // --- ЛОГИКА ДЛЯ ОБЫЧНЫХ ЗДАНИЙ ---
         if (!isItMe(clickedPoint.owner) && playerCooldownEnd > now) {
             const rem = Math.ceil((playerCooldownEnd - now) / 1000);
             const msg = `Перезарядка: ${rem} сек.`;
@@ -130,9 +150,12 @@ function handleInput(clientX, clientY) {
 
         selectedPointId = clickedPoint.id;
         updateMenuUI(clickedPoint);
-        menu.style.display = "block";
+        luxuryMenu.style.display = "none"; // Закрываем магазин, если открыт
+        pointMenu.style.display = "block";
     } else {
-        menu.style.display = "none";
+        // Клик по пустому месту — закрываем всё
+        pointMenu.style.display = "none";
+        luxuryMenu.style.display = "none";
         selectedPointId = null;
     }
 }
@@ -165,11 +188,18 @@ window.addEventListener('mousemove', (e) => {
     cam.x += dx; cam.y += dy;
     dragDistance += Math.abs(dx) + Math.abs(dy);
     cam.lastMouse = { x: e.clientX, y: e.clientY };
-    if (dragDistance > 20) document.getElementById('point-menu').style.display = "none";
+
+    if (dragDistance > 20) {
+        document.getElementById('point-menu').style.display = "none";
+        document.getElementById('luxury-menu').style.display = "none";
+    }
     triggerCamMove();
 });
 
 window.addEventListener('mouseup', () => cam.isDragging = false);
+
+// Клик ПК
+canvas.addEventListener('click', (e) => handleInput(e.clientX, e.clientY));
 
 // Колесо (Зум)
 canvas.addEventListener('wheel', (e) => {
@@ -183,9 +213,7 @@ canvas.addEventListener('wheel', (e) => {
     triggerCamMove();
 }, { passive: false });
 
-canvas.addEventListener('click', (e) => handleInput(e.clientX, e.clientY));
-
-// Тач-управление (Мобилки)
+// Тач-управление (ОДИН БЛОК)
 canvas.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
         cam.isDragging = true;
@@ -220,14 +248,19 @@ canvas.addEventListener('touchmove', (e) => {
         cam.y = centerY - worldPos.y * cam.zoom;
         cam.lastDist = dist;
     }
-    if (dragDistance > 20) document.getElementById('point-menu').style.display = "none";
+
+    if (dragDistance > 20) {
+        document.getElementById('point-menu').style.display = "none";
+        document.getElementById('luxury-menu').style.display = "none";
+    }
     cam.clamp(); 
     triggerCamMove();
 }, { passive: false });
 
 canvas.addEventListener('touchend', (e) => {
     cam.isDragging = false;
-    if (dragDistance < 15 && e.changedTouches.length > 0 && e.touches.length === 0) {
+    // Используем changedTouches для получения координат последнего касания
+    if (dragDistance < 15 && e.changedTouches.length > 0) {
         handleInput(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
     }
 });
@@ -237,15 +270,10 @@ canvas.addEventListener('touchend', (e) => {
 function loop() {
     cam.begin();
     if (mapImg.complete) {
-            // 1. Сначала настраиваем «очки» (фильтр)
-            cam.ctx.filter = "brightness(0.6) contrast(1.1)"; 
-            
-            // 2. Рисуем карту ОДИН РАЗ (она сразу нарисуется темной и четкой)
-            cam.ctx.drawImage(mapImg, 0, 0, 1600, 1600);
-            
-            // 3. Снимаем «очки», чтобы всё остальное (здания) было ярким
-            cam.ctx.filter = "none";
-        }
+        cam.ctx.filter = "brightness(0.6) contrast(1.1)"; 
+        cam.ctx.drawImage(mapImg, 0, 0, 1600, 1600);
+        cam.ctx.filter = "none";
+    }
     
     pointsMgr.draw(cam.ctx, myPlayerKey);
     cam.end();

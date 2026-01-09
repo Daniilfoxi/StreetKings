@@ -9,9 +9,11 @@ app.use(express.static('public'));
 let points = [
     { id: 1, name: "ПОРТ", x: 400, y: 500, owner: 'neutral', ownerName: "ГОСУДАРСТВО", isCapturing: false, level: 1, income: 10, lastCapturedAt: 0 },
     { id: 2, name: "БАНК", x: 1000, y: 300, owner: 'neutral', ownerName: "ГОСУДАРСТВО", isCapturing: false, level: 1, income: 10, lastCapturedAt: 0 },
-    { id: 3, name: "ОФИС", x: 800, y: 1200, owner: 'neutral', ownerName: "ГОСУДАРСТВО", isCapturing: false, level: 1, income: 10, lastCapturedAt: 0 }
+    { id: 3, name: "ОФИС", x: 800, y: 1200, owner: 'neutral', ownerName: "ГОСУДАРСТВО", isCapturing: false, level: 1, income: 10, lastCapturedAt: 0 },
+    { id: 4, name: "LUXURY SHOP", x: 1400, y: 800, type: 'shop' }
 ];
 
+let playerAssets = {};
 let playerBalances = {}; 
 let playerNames = {}; 
 let playerCooldowns = {}; 
@@ -102,12 +104,34 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('buy_luxury', (item) => {
+        if (!currentUserKey) return;
+        const price = item.price;
+        
+        if (playerBalances[currentUserKey] >= price) {
+            playerBalances[currentUserKey] -= price;
+            
+            if (!playerAssets[currentUserKey]) playerAssets[currentUserKey] = [];
+            playerAssets[currentUserKey].push(item.name);
+            
+            socket.emit('money_update', playerBalances[currentUserKey]);
+            socket.emit('buy_success', item.name);
+            broadcastNews(`💎 РОСКОШЬ: ${playerNames[currentUserKey]} купил ${item.name}!`);
+        } else {
+            socket.emit('error_msg', "Недостаточно золота для такой роскоши!");
+        }
+    });
+
     // --- ЗАХВАТ ЗДАНИЯ ---
     socket.on('capture', (id) => {
         if (!currentUserKey) return;
         const p = points.find(pt => pt.id === id);
+        
+        if (p && p.type === 'shop') return socket.emit('error_msg', "Это общественное место, его нельзя захватить!");
         const now = Date.now();
         
+
+
         if (!p || p.owner === currentUserKey || p.isCapturing) return;
 
         if (playerCooldowns[currentUserKey] && playerCooldowns[currentUserKey] > now) {
@@ -122,7 +146,7 @@ io.on('connection', (socket) => {
         p.captureEnd = now + 5000;
         p.attacker = currentUserKey;
         p.attackerName = playerNames[currentUserKey];
-
+        
         io.emit('update', p);
         broadcastNews(`⚔️ ШТУРМ: ${p.attackerName} атакует ${p.name}!`);
 
